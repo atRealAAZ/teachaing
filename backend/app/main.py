@@ -9,6 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -137,7 +138,7 @@ class PythonRunRequest(BaseModel):
 # --------------------------------------------------------------------- misc
 
 
-@app.get("/")
+@app.get("/health")
 def health():
     return {"status": "ok", "app": "Python Lab API"}
 
@@ -306,3 +307,12 @@ async def python_run(
     db.commit()
     result["timeout_seconds"] = RUN_TIMEOUT
     return result
+
+
+# ---------------------------------------------------------- static frontend
+# Present only in production builds (see frontend/dist); in local dev the
+# frontend is served separately by `npm run dev` and this directory is absent.
+
+_FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "..", "static")
+if os.path.isdir(_FRONTEND_DIST):
+    app.mount("/", StaticFiles(directory=_FRONTEND_DIST, html=True), name="frontend")
