@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+alembic
+python-dotenv
+openai
+anthropic
+httpx
+PyJWT[crypto]
+argon2-cffi
+numpy
+pandas
+matplotlib
