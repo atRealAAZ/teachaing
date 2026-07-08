@@ -2,10 +2,11 @@ import asyncio
 import json
 import os
 import random
+import secrets
 from typing import Optional
 
 import openai
-from fastapi import Depends, FastAPI, HTTPException, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -28,6 +29,18 @@ from .pyrunner import RUN_TIMEOUT, run_python
 from .usage import get_monthly_usage, record_usage
 
 app = FastAPI(title="Python Lab API")
+
+# Optional shared classroom passcode. Unset ⇒ open, matching local dev.
+# Set on hosted deployments to keep the code-execution and LLM endpoints out
+# of reach of anyone who isn't in the training (they only have the URL).
+LAB_PASSCODE = os.getenv("LAB_PASSCODE")
+
+
+def require_lab_passcode(x_lab_passcode: Optional[str] = Header(default=None)) -> None:
+    if LAB_PASSCODE is None:
+        return
+    if not x_lab_passcode or not secrets.compare_digest(x_lab_passcode, LAB_PASSCODE):
+        raise HTTPException(status_code=401, detail="Wrong or missing classroom passcode.")
 
 _raw = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
 app.add_middleware(
@@ -196,7 +209,7 @@ def me(user: User = Depends(get_current_user)):
 # ------------------------------------------------------------ lab endpoints
 
 
-@app.post("/lab/run/")
+@app.post("/lab/run/", dependencies=[Depends(require_lab_passcode)])
 async def lab_run(
     request: LabRunRequest,
     db: Session = Depends(get_db),
@@ -234,7 +247,7 @@ async def lab_run(
     return {"llm_output": output, "model": request.model}
 
 
-@app.post("/lab/run/stream")
+@app.post("/lab/run/stream", dependencies=[Depends(require_lab_passcode)])
 async def lab_run_stream(
     request: LabRunRequest,
     db: Session = Depends(get_db),
@@ -286,7 +299,7 @@ async def lab_run_stream(
 # --------------------------------------------------------------- python run
 
 
-@app.post("/python/run")
+@app.post("/python/run", dependencies=[Depends(require_lab_passcode)])
 async def python_run(
     request: PythonRunRequest,
     db: Session = Depends(get_db),
