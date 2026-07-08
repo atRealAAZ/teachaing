@@ -156,6 +156,11 @@ def health():
     return {"status": "ok", "app": "Python Lab API"}
 
 
+@app.post("/lab/passcode-check", dependencies=[Depends(require_lab_passcode)])
+def passcode_check():
+    return {"ok": True}
+
+
 @app.get("/models/")
 def list_models():
     return AVAILABLE_MODELS

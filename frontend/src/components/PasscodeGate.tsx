@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Box, Button, Heading, Input, Stack, Text } from '@chakra-ui/react'
-import { setLabPasscode } from '../api'
+import api, { setLabPasscode } from '../api'
 
 const DISMISSED_KEY = 'lab_passcode_entered'
 
@@ -9,13 +9,25 @@ export default function PasscodeGate({ children }: { children: ReactNode }) {
     () => sessionStorage.getItem(DISMISSED_KEY) === 'true'
   )
   const [value, setValue] = useState('')
+  const [error, setError] = useState('')
+  const [checking, setChecking] = useState(false)
 
   if (entered) return <>{children}</>
 
-  const submit = () => {
+  const submit = async () => {
+    setError('')
+    setChecking(true)
     setLabPasscode(value.trim())
-    sessionStorage.setItem(DISMISSED_KEY, 'true')
-    setEntered(true)
+    try {
+      await api.post('/lab/passcode-check')
+      sessionStorage.setItem(DISMISSED_KEY, 'true')
+      setEntered(true)
+    } catch {
+      setLabPasscode('')
+      setError('Wrong passcode — check with your trainer.')
+    } finally {
+      setChecking(false)
+    }
   }
 
   return (
@@ -33,7 +45,12 @@ export default function PasscodeGate({ children }: { children: ReactNode }) {
           onKeyDown={(e) => e.key === 'Enter' && submit()}
           autoFocus
         />
-        <Button colorScheme="blue" onClick={submit}>
+        {error && (
+          <Text fontSize="sm" color="red.500">
+            {error}
+          </Text>
+        )}
+        <Button colorScheme="blue" onClick={submit} isLoading={checking}>
           Continue
         </Button>
       </Stack>
