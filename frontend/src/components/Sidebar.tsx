@@ -1,6 +1,6 @@
 import { Box, Button, Text, VStack } from '@chakra-ui/react'
 
-export type View = 'lab' | 'cheatsheet'
+export type View = 'lab' | 'usecase' | 'cheatsheet'
 
 function NavButton(props: {
   active: boolean
@@ -52,6 +52,11 @@ export default function Sidebar(props: {
           active={props.view === 'lab'}
           label="🧪  The capstone lab"
           onClick={() => props.onNavigate('lab')}
+        />
+        <NavButton
+          active={props.view === 'usecase'}
+          label="💡  Use Case"
+          onClick={() => props.onNavigate('usecase')}
         />
         <NavButton
           active={props.view === 'cheatsheet'}

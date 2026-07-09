@@ -70,7 +70,7 @@ export function Stepper(props: { steps: string[]; active: number }) {
 
 export function BlockField(props: {
   label: string
-  topic: string
+  topic?: string
   hint: string
   example: string
   optional?: boolean
@@ -78,17 +78,33 @@ export function BlockField(props: {
   value: string
   onChange: (value: string) => void
   onInsertExample: () => void
+  mono?: boolean
+  placeholder?: string
 }) {
-  const { label, topic, hint, example, optional, rows, value, onChange, onInsertExample } = props
+  const {
+    label,
+    topic,
+    hint,
+    example,
+    optional,
+    rows,
+    value,
+    onChange,
+    onInsertExample,
+    mono = true,
+    placeholder = "# type your Python here — hover 'example' if you're stuck (click it to insert)",
+  } = props
   return (
     <Box>
       <Flex align="baseline" gap={2} flexWrap="wrap">
         <Text fontWeight={600} fontSize="sm" fontFamily="body">
           {label}
         </Text>
-        <Badge colorScheme="purple" variant="subtle">
-          {topic}
-        </Badge>
+        {topic && (
+          <Badge colorScheme="purple" variant="subtle">
+            {topic}
+          </Badge>
+        )}
         {optional && (
           <Badge colorScheme="gray" variant="subtle">
             optional
@@ -124,10 +140,10 @@ export function BlockField(props: {
         rows={rows}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        fontFamily="mono"
-        fontSize="xs"
+        fontFamily={mono ? 'mono' : 'body'}
+        fontSize={mono ? 'xs' : 'sm'}
         spellCheck={false}
-        placeholder="# type your Python here — hover 'example' if you're stuck (click it to insert)"
+        placeholder={placeholder}
       />
     </Box>
   )
