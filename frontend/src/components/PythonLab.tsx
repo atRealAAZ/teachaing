@@ -32,6 +32,7 @@ import {
 import {
   BlockField,
   Callout,
+  MarkdownOutput,
   MicroLabel,
   OutputCard,
   PresetCard,
@@ -557,7 +558,7 @@ Write in English, warm and concise. No headings other than the ones above.`
             {coachOutput && (
               <Box mt={4}>
                 <OutputCard label="The coach's review" maxH="500px">
-                  {coachOutput}
+                  <MarkdownOutput>{coachOutput}</MarkdownOutput>
                 </OutputCard>
                 {!coachRunning && (
                   <HStack mt={3}>

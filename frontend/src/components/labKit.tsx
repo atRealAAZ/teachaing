@@ -2,9 +2,11 @@
 // callouts — the visual grammar every lab reuses.
 
 import type { ReactNode } from 'react'
+import ReactMarkdown from 'react-markdown'
 import {
   Badge,
   Box,
+  Code,
   Flex,
   HStack,
   Text,
@@ -198,6 +200,84 @@ export function Callout(props: {
       <Text fontSize="sm" color={colors.body} mt={1}>
         {children}
       </Text>
+    </Box>
+  )
+}
+
+// Streaming AI answers arrive as markdown — render them in the lab's own
+// voice: serif headings, quiet body text, dark mono code blocks.
+export function MarkdownOutput(props: { children: string }) {
+  return (
+    <Box whiteSpace="normal">
+      <ReactMarkdown
+        components={{
+          h1: ({ children }) => (
+            <Text fontFamily="heading" fontSize="xl" mt={5} mb={2} sx={{ ':first-child': { mt: 0 } }}>
+              {children}
+            </Text>
+          ),
+          h2: ({ children }) => (
+            <Text fontFamily="heading" fontSize="lg" mt={5} mb={2} sx={{ ':first-child': { mt: 0 } }}>
+              {children}
+            </Text>
+          ),
+          h3: ({ children }) => (
+            <Text fontWeight={600} fontSize="sm" mt={4} mb={1}>
+              {children}
+            </Text>
+          ),
+          p: ({ children }) => (
+            <Text fontSize="sm" color="gray.700" mb={2} lineHeight="1.7">
+              {children}
+            </Text>
+          ),
+          ul: ({ children }) => (
+            <Box as="ul" pl={5} mb={3} fontSize="sm" color="gray.700">
+              {children}
+            </Box>
+          ),
+          ol: ({ children }) => (
+            <Box as="ol" pl={5} mb={3} fontSize="sm" color="gray.700">
+              {children}
+            </Box>
+          ),
+          li: ({ children }) => (
+            <Box as="li" mb={1} lineHeight="1.7">
+              {children}
+            </Box>
+          ),
+          code: ({ children, className }) =>
+            className || String(children).includes('\n') ? (
+              <Box
+                as="pre"
+                bg="gray.900"
+                color="gray.100"
+                fontFamily="mono"
+                fontSize="xs"
+                p={4}
+                borderRadius="md"
+                overflowX="auto"
+                whiteSpace="pre-wrap"
+                my={3}
+              >
+                {children}
+              </Box>
+            ) : (
+              <Code fontSize="xs" colorScheme="purple">
+                {children}
+              </Code>
+            ),
+          pre: ({ children }) => <>{children}</>,
+          strong: ({ children }) => (
+            <Text as="strong" fontWeight={600}>
+              {children}
+            </Text>
+          ),
+          hr: () => <Box borderTop="1px solid" borderColor="gray.200" my={4} />,
+        }}
+      >
+        {props.children}
+      </ReactMarkdown>
     </Box>
   )
 }

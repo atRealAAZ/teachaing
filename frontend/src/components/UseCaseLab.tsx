@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Badge,
   Box,
@@ -26,6 +26,7 @@ import {
 import {
   BlockField,
   Callout,
+  MarkdownOutput,
   MicroLabel,
   OutputCard,
   PresetCard,
@@ -37,7 +38,9 @@ const LAB_MODEL = 'gpt-5.4-mini'
 // Honest ROI: AI/scripts draft, humans check — assume ~70% of the time saved.
 const SAVING_RATIO = 0.7
 
-type Step = 'problem' | 'design' | 'plan'
+type Step = 'problem' | 'design' | 'plan' | 'build'
+
+type BuildMsg = { role: 'user' | 'assistant'; content: string }
 
 const emptyBlocks = (): Record<UseCaseBlockKey, string> =>
   Object.fromEntries(USE_CASE_BLOCKS.map((b) => [b.key, ''])) as Record<
@@ -93,6 +96,14 @@ export default function UseCaseLab() {
   const [blocks, setBlocks] = useState<Record<UseCaseBlockKey, string>>(emptyBlocks)
   const [advice, setAdvice] = useState('')
   const [adviceRunning, setAdviceRunning] = useState(false)
+  const [buildMsgs, setBuildMsgs] = useState<BuildMsg[]>([])
+  const [buildInput, setBuildInput] = useState('')
+  const [buildRunning, setBuildRunning] = useState(false)
+  const chatRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight })
+  }, [buildMsgs])
 
   const preset: UseCasePreset | null =
     USE_CASE_PRESETS.find((p) => p.key === presetKey) ?? null
@@ -173,6 +184,42 @@ At most 2 risks or pitfalls (e.g. privacy, quality, over-reliance).
 Write in English, concise and practical. No headings other than the ones above.`
   }
 
+  const streamLab = async (
+    body: { prompt: string; system_message?: string; model: string },
+    onToken: (token: string) => void
+  ) => {
+    const res = await authFetch(`${API_BASE}/lab/run/stream`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+    if (!res.ok || !res.body) {
+      let detail = `Server returned ${res.status}`
+      try {
+        detail = (await res.json())?.detail || detail
+      } catch {
+        // keep the generic message
+      }
+      throw new Error(detail)
+    }
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n\n')
+      buffer = lines.pop() || '' // keep the incomplete tail for the next chunk
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed.startsWith('data:')) continue
+        const payload = JSON.parse(trimmed.slice(5).trim())
+        if (payload.token) onToken(payload.token)
+        else if (payload.error) throw new Error(payload.error)
+      }
+    }
+  }
+
   const runPlan = async () => {
     if (filledCount === 0) {
       toast({
@@ -184,37 +231,11 @@ Write in English, concise and practical. No headings other than the ones above.`
     setStep('plan')
     setAdviceRunning(true)
     setAdvice('')
+    setBuildMsgs([]) // fresh advice → fresh build session
     try {
-      const res = await authFetch(`${API_BASE}/lab/run/stream`, {
-        method: 'POST',
-        body: JSON.stringify({ prompt: buildPlanPrompt(), model: LAB_MODEL }),
-      })
-      if (!res.ok || !res.body) {
-        let detail = `Server returned ${res.status}`
-        try {
-          detail = (await res.json())?.detail || detail
-        } catch {
-          // keep the generic message
-        }
-        throw new Error(detail)
-      }
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      for (;;) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n\n')
-        buffer = lines.pop() || '' // keep the incomplete tail for the next chunk
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed.startsWith('data:')) continue
-          const payload = JSON.parse(trimmed.slice(5).trim())
-          if (payload.token) setAdvice((prev) => prev + payload.token)
-          else if (payload.error) throw new Error(payload.error)
-        }
-      }
+      await streamLab({ prompt: buildPlanPrompt(), model: LAB_MODEL }, (token) =>
+        setAdvice((prev) => prev + token)
+      )
     } catch (error: any) {
       toast({
         status: 'error',
@@ -223,6 +244,84 @@ Write in English, concise and practical. No headings other than the ones above.`
     } finally {
       setAdviceRunning(false)
     }
+  }
+
+  const buildCoachSystem =
+    () => `You are a patient, hands-on build coach on the last afternoon of a two-day beginner Python course. The course covered: variables & datatypes, lists, dicts, logic & functions, NumPy, pandas and matplotlib. Participants also use AI assistants (like ChatGPT and Claude) to help them write scripts.
+
+The participant designed the use case below and already received advice on it. Your job now is to help them actually BUILD the solution, one small step at a time.
+
+The problem:
+${problem.trim()}
+Task: ${task.trim()}
+
+Their solution plan:
+${assembledPlan}
+
+The advice they received:
+${advice}
+
+Coaching rules:
+- In your FIRST message: give a short roadmap of 3-6 small numbered build steps, then immediately start with step 1.
+- Guide ONE step at a time: what to do, the exact code snippet or the exact AI-assistant prompt to use, and how to check it worked. Then stop and wait for the participant.
+- Start each step message with a heading like "### Step 2 of 5 — Read the file". Never dump the whole solution at once — small wins keep momentum.
+- If they paste an error or something doesn't work, debug it with them calmly before moving on.
+- Use only concepts from the course (pandas where it fits). Made-up filenames are fine; ask what their real file is called when it matters.
+- Keep every message short and practical (under ~200 words), in English, in markdown.
+- When the roadmap is complete, congratulate them and suggest one small stretch improvement.`
+
+  const buildTurnPrompt = (history: BuildMsg[]) => {
+    if (history.length === 0)
+      return 'Start the build session now: give the roadmap and step 1.'
+    const transcript = history
+      .map((m) =>
+        m.role === 'user' ? `Participant: ${m.content}` : `Coach: ${m.content}`
+      )
+      .join('\n\n')
+    return `Conversation so far:\n\n${transcript}\n\nReply with the coach's next message only.`
+  }
+
+  const runBuildTurn = async (history: BuildMsg[]) => {
+    setBuildMsgs([...history, { role: 'assistant', content: '' }])
+    setBuildInput('')
+    setBuildRunning(true)
+    try {
+      await streamLab(
+        {
+          prompt: buildTurnPrompt(history),
+          system_message: buildCoachSystem(),
+          model: LAB_MODEL,
+        },
+        (token) =>
+          setBuildMsgs((prev) => {
+            const next = [...prev]
+            const last = next[next.length - 1]
+            next[next.length - 1] = { ...last, content: last.content + token }
+            return next
+          })
+      )
+    } catch (error: any) {
+      // drop the empty assistant placeholder so the turn can be retried
+      setBuildMsgs((prev) =>
+        prev.filter((m, i) => i !== prev.length - 1 || m.content.trim() !== '')
+      )
+      toast({
+        status: 'error',
+        title: error?.message || 'The coach is unavailable right now.',
+      })
+    } finally {
+      setBuildRunning(false)
+    }
+  }
+
+  const startBuild = () => {
+    setStep('build')
+    if (buildMsgs.length === 0) runBuildTurn([])
+  }
+
+  const sendBuild = (text: string) => {
+    if (!text.trim() || buildRunning) return
+    runBuildTurn([...buildMsgs, { role: 'user', content: text.trim() }])
   }
 
   return (
@@ -234,8 +333,21 @@ Write in English, concise and practical. No headings other than the ones above.`
           plan to get started, with AI at your side.
         </Text>
         <Stepper
-          steps={['1 · The problem', '2 · The solution', '3 · Make it concrete']}
-          active={step === 'problem' ? 0 : step === 'design' ? 1 : 2}
+          steps={[
+            '1 · The problem',
+            '2 · The solution',
+            '3 · Make it concrete',
+            '4 · Build it',
+          ]}
+          active={
+            step === 'problem'
+              ? 0
+              : step === 'design'
+                ? 1
+                : step === 'plan'
+                  ? 2
+                  : 3
+          }
         />
 
         {step === 'problem' && (
@@ -509,7 +621,13 @@ Write in English, concise and practical. No headings other than the ones above.`
                   </Text>
                 </Flex>
                 <OutputCard label="The advisor's plan" maxH="60vh">
-                  {advice || (adviceRunning ? 'Thinking…' : '')}
+                  {advice ? (
+                    <MarkdownOutput>{advice}</MarkdownOutput>
+                  ) : adviceRunning ? (
+                    'Thinking…'
+                  ) : (
+                    ''
+                  )}
                 </OutputCard>
               </Box>
             </Grid>
@@ -518,11 +636,15 @@ Write in English, concise and practical. No headings other than the ones above.`
               <Box>
                 <Divider my={8} />
                 <Text fontSize="sm" color="gray.500">
-                  Not satisfied? Go back, sharpen your solution, and ask again —
-                  iterating on the plan is exactly how you’ll work with AI in
-                  practice.
+                  Happy with the plan? Build it right now, step by step, with a
+                  coach at your side. Not satisfied? Go back, sharpen your
+                  solution, and ask again — iterating on the plan is exactly how
+                  you’ll work with AI in practice.
                 </Text>
                 <HStack mt={4}>
+                  <Button colorScheme="purple" onClick={startBuild}>
+                    Build it step by step →
+                  </Button>
                   <Button variant="outline" onClick={() => setStep('design')}>
                     ← Back to the blocks
                   </Button>
@@ -536,6 +658,164 @@ Write in English, concise and practical. No headings other than the ones above.`
                 </HStack>
               </Box>
             )}
+          </Box>
+        )}
+
+        {step === 'build' && (
+          <Box>
+            <Callout tone="guide" title="Build it, step by step 🛠️">
+              Your coach breaks the solution into small steps and gives you one
+              at a time — with the exact code or AI prompt to try. Say “done”
+              to move on, or paste an error and you’ll fix it together.
+            </Callout>
+
+            <Grid
+              templateColumns={{ base: '1fr', lg: '300px 1fr' }}
+              gap={6}
+              mt={6}
+              alignItems="start"
+            >
+              <Box
+                display={{ base: 'none', lg: 'flex' }}
+                flexDirection="column"
+                gap={4}
+                position="sticky"
+                top={4}
+              >
+                <OutputCard label="Your solution plan" mono subdued maxH="40vh">
+                  {assembledPlan}
+                </OutputCard>
+                {estimate.savedHours > 0 && (
+                  <Text fontSize="sm" color="green.600">
+                    Worth ~{estimate.savedHours.toFixed(1)} hrs (≈ €
+                    {Math.round(estimate.savedEuro)}) per month once it runs.
+                  </Text>
+                )}
+              </Box>
+
+              <Box
+                border="1px solid"
+                borderColor="gray.200"
+                borderRadius="xl"
+                bg="white"
+                overflow="hidden"
+              >
+                <Box
+                  ref={chatRef}
+                  maxH="60vh"
+                  overflowY="auto"
+                  p={5}
+                  display="flex"
+                  flexDirection="column"
+                  gap={5}
+                >
+                  {buildMsgs.map((m, i) =>
+                    m.role === 'assistant' ? (
+                      <Box key={i}>
+                        <Flex align="center" gap={2} mb={1}>
+                          <Badge
+                            colorScheme="purple"
+                            variant="solid"
+                            borderRadius="full"
+                            px={3}
+                          >
+                            Build coach
+                          </Badge>
+                        </Flex>
+                        {m.content ? (
+                          <MarkdownOutput>{m.content}</MarkdownOutput>
+                        ) : (
+                          <Text fontSize="sm" color="gray.500">
+                            Thinking…
+                          </Text>
+                        )}
+                      </Box>
+                    ) : (
+                      <Flex key={i} justify="flex-end">
+                        <Box
+                          bg="brand.50"
+                          border="1px solid"
+                          borderColor="brand.100"
+                          borderRadius="lg"
+                          px={4}
+                          py={2}
+                          maxW="85%"
+                        >
+                          <Text fontSize="sm" whiteSpace="pre-wrap">
+                            {m.content}
+                          </Text>
+                        </Box>
+                      </Flex>
+                    )
+                  )}
+                </Box>
+                <Box borderTop="1px solid" borderColor="gray.200" p={4}>
+                  <HStack mb={3} flexWrap="wrap">
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      isDisabled={buildRunning || buildMsgs.length === 0}
+                      onClick={() => sendBuild('Done ✓ — next step, please.')}
+                    >
+                      ✓ Done — next step
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      isDisabled={buildRunning || buildMsgs.length === 0}
+                      onClick={() =>
+                        sendBuild('Can you explain that again, a bit simpler?')
+                      }
+                    >
+                      Explain it simpler
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      isDisabled={buildRunning || buildMsgs.length === 0}
+                      onClick={() => setBuildInput('I got this error:\n\n')}
+                    >
+                      I got an error…
+                    </Button>
+                  </HStack>
+                  <HStack align="flex-end">
+                    <Textarea
+                      rows={2}
+                      value={buildInput}
+                      onChange={(e) => setBuildInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          sendBuild(buildInput)
+                        }
+                      }}
+                      placeholder="Ask a question, paste your code or an error… (Enter to send, Shift+Enter for a new line)"
+                    />
+                    <Button
+                      colorScheme="purple"
+                      onClick={() => sendBuild(buildInput)}
+                      isDisabled={buildRunning || !buildInput.trim()}
+                    >
+                      Send
+                    </Button>
+                  </HStack>
+                </Box>
+              </Box>
+            </Grid>
+
+            <HStack mt={8}>
+              <Button variant="outline" onClick={() => setStep('plan')}>
+                ← Back to the plan
+              </Button>
+              <Button
+                variant="ghost"
+                colorScheme="purple"
+                isDisabled={buildRunning}
+                onClick={() => runBuildTurn([])}
+              >
+                Restart the build
+              </Button>
+            </HStack>
           </Box>
         )}
       </Box>
