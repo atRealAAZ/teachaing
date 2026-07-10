@@ -54,7 +54,9 @@ app.add_middleware(
 # ---------------------------------------------------------------- lab config
 
 LAB_DEFAULT_MODEL = "gpt-5.4-mini"
-LAB_MONTHLY_TOKEN_LIMIT = 100_000  # a training group must not stall mid-exercise
+# With auth disabled the whole group shares one user, so this is effectively a
+# group-wide budget — size it for a full training day, not one person.
+LAB_MONTHLY_TOKEN_LIMIT = int(os.getenv("LAB_MONTHLY_TOKEN_LIMIT", "2000000"))
 LAB_MAX_RETRIES = 3  # ~10 people on one API key can trip 429/transient 5xx
 LAB_RETRY_BASE_DELAY = 0.5
 LAB_BUSY_MESSAGE = "It's a bit busy — wait a few seconds and try again."
