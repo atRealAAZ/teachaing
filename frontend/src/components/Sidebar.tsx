@@ -1,6 +1,12 @@
 import { Box, Button, Text, VStack } from '@chakra-ui/react'
 
-export type View = 'lab' | 'usecase' | 'cheatsheet'
+export type View =
+  | 'lab'
+  | 'usecase'
+  | 'cheatsheet'
+  | 'mllab'
+  | 'mlusecase'
+  | 'mlcheatsheet'
 
 function NavButton(props: {
   active: boolean
@@ -24,6 +30,21 @@ function NavButton(props: {
   )
 }
 
+function SectionLabel(props: { children: string }) {
+  return (
+    <Text
+      px={3}
+      fontSize="xs"
+      fontWeight={700}
+      color="gray.400"
+      textTransform="uppercase"
+      letterSpacing="0.08em"
+    >
+      {props.children}
+    </Text>
+  )
+}
+
 export default function Sidebar(props: {
   view: View
   onNavigate: (view: View) => void
@@ -41,13 +62,14 @@ export default function Sidebar(props: {
     >
       <Box px={2} py={3}>
         <Text fontFamily="heading" fontSize="2xl" letterSpacing="-0.02em">
-          Python Lab
+          The Lab
         </Text>
         <Text fontSize="xs" color="gray.500">
-          two days · one script
+          python · machine learning
         </Text>
       </Box>
       <VStack align="stretch" spacing={1} mt={4}>
+        <SectionLabel>Python</SectionLabel>
         <NavButton
           active={props.view === 'lab'}
           label="🧪  The capstone lab"
@@ -62,6 +84,24 @@ export default function Sidebar(props: {
           active={props.view === 'cheatsheet'}
           label="📖  Cheatsheet"
           onClick={() => props.onNavigate('cheatsheet')}
+        />
+      </VStack>
+      <VStack align="stretch" spacing={1} mt={6}>
+        <SectionLabel>Machine Learning</SectionLabel>
+        <NavButton
+          active={props.view === 'mllab'}
+          label="🤖  The capstone lab"
+          onClick={() => props.onNavigate('mllab')}
+        />
+        <NavButton
+          active={props.view === 'mlusecase'}
+          label="💡  Use Case"
+          onClick={() => props.onNavigate('mlusecase')}
+        />
+        <NavButton
+          active={props.view === 'mlcheatsheet'}
+          label="📖  Cheatsheet"
+          onClick={() => props.onNavigate('mlcheatsheet')}
         />
       </VStack>
       <Box mt="auto" px={2} pb={1}>

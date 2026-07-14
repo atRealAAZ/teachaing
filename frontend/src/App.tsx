@@ -3,7 +3,10 @@ import { Box, Flex } from '@chakra-ui/react'
 import Sidebar, { type View } from './components/Sidebar'
 import PythonLab from './components/PythonLab'
 import UseCaseLab from './components/UseCaseLab'
+import MLLab from './components/MLLab'
+import MLUseCaseLab from './components/MLUseCaseLab'
 import Cheatsheet from './components/Cheatsheet'
+import MLCheatsheet from './components/MLCheatsheet'
 import PasscodeGate from './components/PasscodeGate'
 
 export default function App() {
@@ -18,6 +21,12 @@ export default function App() {
             <PythonLab />
           ) : view === 'usecase' ? (
             <UseCaseLab />
+          ) : view === 'mllab' ? (
+            <MLLab />
+          ) : view === 'mlusecase' ? (
+            <MLUseCaseLab />
+          ) : view === 'mlcheatsheet' ? (
+            <MLCheatsheet />
           ) : (
             <Cheatsheet />
           )}
