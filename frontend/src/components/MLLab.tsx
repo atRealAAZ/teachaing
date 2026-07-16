@@ -251,12 +251,17 @@ Write in English, warm and concise. No headings other than the ones above.`
 
         {step === 'data' && (
           <Box>
+            <Text fontSize="sm" color="gray.500" mb={3}>
+              Every dataset runs all four topics — but each one puts a different
+              topic in the spotlight. Pick the topic you want to see shine.
+            </Text>
             <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
               {ML_PRESETS.map((p) => (
                 <PresetCard
                   key={p.key}
                   emoji={p.emoji}
                   label={p.label}
+                  badge={p.focus}
                   description={p.description}
                   selected={presetKey === p.key}
                   onClick={() => setPresetKey(p.key)}

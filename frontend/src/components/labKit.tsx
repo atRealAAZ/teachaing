@@ -20,9 +20,10 @@ export function PresetCard(props: {
   description: string
   selected: boolean
   dashed?: boolean
+  badge?: string
   onClick: () => void
 }) {
-  const { emoji, label, description, selected, dashed, onClick } = props
+  const { emoji, label, description, selected, dashed, badge, onClick } = props
   return (
     <Box
       as="button"
@@ -37,10 +38,17 @@ export function PresetCard(props: {
       _hover={{ borderColor: selected ? 'brand.400' : 'brand.300', bg: 'brand.50' }}
       onClick={onClick}
     >
-      <Text fontWeight={600} fontSize="sm" fontFamily="body">
-        {emoji ? `${emoji}  ` : ''}
-        {label}
-      </Text>
+      <Flex justify="space-between" align="center" gap={2}>
+        <Text fontWeight={600} fontSize="sm" fontFamily="body">
+          {emoji ? `${emoji}  ` : ''}
+          {label}
+        </Text>
+        {badge && (
+          <Badge colorScheme="purple" variant="subtle" flexShrink={0}>
+            {badge}
+          </Badge>
+        )}
+      </Flex>
       <Text fontSize="xs" color="gray.500" mt={1}>
         {description}
       </Text>

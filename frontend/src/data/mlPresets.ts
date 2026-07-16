@@ -76,6 +76,9 @@ export interface MLPreset {
   key: string
   emoji: string
   label: string
+  // The course topic this dataset showcases best — every dataset still runs
+  // all four blocks, but this is the one where the lesson really lands.
+  focus: 'Regression' | 'Classification' | 'Clustering' | 'Ensemble methods'
   description: string
   question: string
   csv: string
@@ -183,54 +186,54 @@ const customersCsv = `age,months_member,visits_per_month,avg_spend,churned
 44,48,4.7,18.52,no`
 
 const bikesCsv = `temp_c,rain_mm,wind_kmh,is_weekend,rentals,busy
-27.3,0.0,16,0,387,yes
-11.4,0.6,5,0,126,no
-13.2,0.1,29,1,165,no
-30.8,0.1,32,0,410,yes
-21.2,0.0,13,0,340,yes
-7.0,0.0,44,0,40,no
-31.7,0.0,22,0,501,yes
-24.7,1.8,23,1,368,yes
-29.2,0.0,14,1,498,yes
-19.6,2.0,8,1,319,yes
-21.1,2.3,31,0,245,no
-13.0,0.7,18,0,199,no
-25.1,1.5,25,0,294,yes
-27.5,0.3,24,0,351,yes
-14.0,4.9,30,1,204,no
-7.7,0.0,42,0,91,no
-20.0,0.0,16,0,302,yes
-31.5,0.7,24,0,442,yes
-23.6,8.9,36,0,145,no
-24.0,0.7,27,0,376,yes
-31.5,0.9,34,0,395,yes
-5.7,0.0,36,0,94,no
-15.9,2.6,21,0,218,no
-18.7,1.8,41,0,216,no
-13.2,0.0,9,0,161,no
-25.2,6.4,34,0,209,no
-9.0,0.0,39,1,206,no
-22.3,0.0,21,0,368,yes
-9.1,2.3,18,0,75,no
-19.7,0.0,15,0,254,no
-4.5,0.0,33,0,125,no
-10.9,1.3,10,0,88,no
-13.8,0.6,24,1,332,yes
-4.0,0.0,5,0,94,no
-12.3,0.0,43,0,116,no
-10.5,1.8,14,0,143,no
-17.9,1.9,28,0,181,no
-9.2,0.0,11,0,165,no
-18.8,0.0,36,0,271,no
-31.8,0.3,37,0,407,yes
-7.6,0.6,9,0,104,no
-17.4,2.7,6,0,186,no
-3.2,2.5,7,0,12,no
-11.4,0.0,9,0,222,no
-22.9,0.3,17,0,351,yes
-2.0,0.0,39,1,92,no
-16.7,0.0,22,0,205,no
-9.8,0.0,14,0,123,no`
+22.0,1.5,36,1,540,yes
+30.0,0.0,37,0,320,yes
+11.7,0.0,15,0,246,no
+19.7,6.1,44,1,173,no
+21.6,0.0,6,0,342,yes
+31.3,0.2,25,0,359,yes
+8.2,1.4,13,0,190,no
+28.6,0.0,15,0,399,yes
+29.1,3.0,34,1,235,no
+18.2,1.7,19,0,321,yes
+14.4,0.0,11,0,288,no
+33.3,0.8,29,0,323,yes
+6.8,4.7,14,0,89,no
+33.0,1.5,31,1,445,yes
+23.2,0.6,38,0,371,yes
+20.2,0.0,12,0,375,yes
+7.8,2.1,30,0,65,no
+15.2,0.2,6,0,319,yes
+19.5,0.0,35,1,465,yes
+3.0,0.0,43,0,13,no
+18.8,1.6,18,0,365,yes
+13.4,0.8,35,0,247,no
+31.9,0.0,35,0,331,yes
+15.4,0.0,5,0,291,no
+18.4,9.0,14,1,159,no
+7.7,0.4,42,0,134,no
+10.7,12.1,22,0,90,no
+18.7,1.9,34,0,309,no
+30.1,0.7,41,1,509,yes
+18.6,1.6,15,0,349,yes
+24.9,2.9,43,1,210,no
+8.5,0.0,13,0,169,no
+5.6,2.1,24,0,54,no
+11.8,1.1,23,0,250,no
+7.9,0.0,21,0,158,no
+25.4,0.0,41,0,365,yes
+18.7,4.0,6,1,211,no
+10.1,0.2,12,0,207,no
+20.9,0.0,32,1,563,yes
+32.0,1.7,37,0,353,yes
+8.1,3.0,6,0,122,no
+29.3,0.0,18,1,561,yes
+22.1,1.4,17,0,420,yes
+6.1,0.6,40,1,108,no
+22.4,1.1,8,0,416,yes
+28.4,9.6,18,0,137,no
+30.6,0.0,6,0,428,yes
+20.0,0.0,20,1,533,yes`
 
 const penguinsCsv = `species,bill_mm,flipper_mm,body_mass_g
 Adelie,42.3,191,3870
@@ -287,9 +290,11 @@ export const ML_PRESETS: MLPreset[] = [
     key: 'houses',
     emoji: '🏠',
     label: 'House prices',
-    description: '48 houses: size, age, distance to the city, energy label, price.',
+    focus: 'Regression',
+    description:
+      'Predict a price in euros — the classic regression problem. 48 houses: size, age, distance, energy label.',
     question:
-      'Predict the price of a house from its size, age and location — and can a model guess the energy label too?',
+      'Regression in the spotlight: predict the price of a house from its size, age and location. The other blocks still run — can a model guess the energy label too?',
     csv: housesCsv,
     examples: {
       setup: `RANDOM_STATE = 42\nTEST_SIZE = 0.25\nN_CLUSTERS = 3`,
@@ -305,9 +310,11 @@ export const ML_PRESETS: MLPreset[] = [
     key: 'churn',
     emoji: '🏃',
     label: 'Gym member churn',
-    description: '48 members: age, tenure, visits, spend — and who cancelled.',
+    focus: 'Classification',
+    description:
+      'Predict a category: cancels yes or no — classification. 48 members: age, tenure, visits, spend.',
     question:
-      'Predict which members are about to cancel — and discover the natural member segments while you are at it.',
+      'Classification in the spotlight: predict which members are about to cancel (yes/no). The other blocks still run — discover the member segments while you are at it.',
     csv: customersCsv,
     examples: {
       setup: `RANDOM_STATE = 42\nTEST_SIZE = 0.25\nN_CLUSTERS = 3`,
@@ -323,9 +330,11 @@ export const ML_PRESETS: MLPreset[] = [
     key: 'bikes',
     emoji: '🚲',
     label: 'Bike rentals & weather',
-    description: '48 days: temperature, rain, wind, weekend — and rentals.',
+    focus: 'Ensemble methods',
+    description:
+      'Messy, non-linear weather effects — where the random forest shines. 48 days: temperature, rain, wind, weekend.',
     question:
-      'Predict how many bikes get rented from the weather — and does the random forest beat a single model?',
+      'Ensemble methods in the spotlight: predict rentals from the weather. The effects are non-linear (rain kills demand, heat plateaus) — watch the random forest beat the straight line.',
     csv: bikesCsv,
     examples: {
       setup: `RANDOM_STATE = 42\nTEST_SIZE = 0.25\nN_CLUSTERS = 3`,
@@ -341,9 +350,11 @@ export const ML_PRESETS: MLPreset[] = [
     key: 'penguins',
     emoji: '🐧',
     label: 'Penguin species',
-    description: '48 penguins: bill, flipper, body mass — three species.',
+    focus: 'Clustering',
+    description:
+      'Three natural groups hiding in the data — clustering finds them without labels. 48 penguins: bill, flipper, mass.',
     question:
-      'Can a model recognise the species from two measurements — and does clustering find the species on its own, without ever seeing the labels?',
+      'Clustering in the spotlight: does KMeans find the three species on its own, without ever seeing the labels? Check the crosstab. The other blocks still run — a classifier recognises the species too.',
     csv: penguinsCsv,
     examples: {
       setup: `RANDOM_STATE = 42\nTEST_SIZE = 0.25\nN_CLUSTERS = 3`,
