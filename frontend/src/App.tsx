@@ -5,6 +5,7 @@ import PythonLab from './components/PythonLab'
 import UseCaseLab from './components/UseCaseLab'
 import MLLab from './components/MLLab'
 import MLUseCaseLab from './components/MLUseCaseLab'
+import AIEngUseCaseLab from './components/AIEngUseCaseLab'
 import Cheatsheet from './components/Cheatsheet'
 import MLCheatsheet from './components/MLCheatsheet'
 import PasscodeGate from './components/PasscodeGate'
@@ -27,6 +28,8 @@ export default function App() {
             <MLUseCaseLab />
           ) : view === 'mlcheatsheet' ? (
             <MLCheatsheet />
+          ) : view === 'aiengusecase' ? (
+            <AIEngUseCaseLab />
           ) : (
             <Cheatsheet />
           )}

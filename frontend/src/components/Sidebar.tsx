@@ -7,6 +7,7 @@ export type View =
   | 'mllab'
   | 'mlusecase'
   | 'mlcheatsheet'
+  | 'aiengusecase'
 
 function NavButton(props: {
   active: boolean
@@ -65,7 +66,7 @@ export default function Sidebar(props: {
           The Lab
         </Text>
         <Text fontSize="xs" color="gray.500">
-          python · machine learning
+          python · machine learning · ai engineering
         </Text>
       </Box>
       <VStack align="stretch" spacing={1} mt={4}>
@@ -102,6 +103,14 @@ export default function Sidebar(props: {
           active={props.view === 'mlcheatsheet'}
           label="📖  Cheatsheet"
           onClick={() => props.onNavigate('mlcheatsheet')}
+        />
+      </VStack>
+      <VStack align="stretch" spacing={1} mt={6}>
+        <SectionLabel>AI Engineering</SectionLabel>
+        <NavButton
+          active={props.view === 'aiengusecase'}
+          label="💡  Use Case"
+          onClick={() => props.onNavigate('aiengusecase')}
         />
       </VStack>
       <Box mt="auto" px={2} pb={1}>
