@@ -156,7 +156,7 @@ export default function AIEngUseCaseLab() {
       estimate.savedHours > 0
         ? `Estimated time saved: ~${estimate.savedHours.toFixed(1)} hours per month.`
         : ''
-    return `Task context: You are a level-headed, friendly AI engineering advisor on the last afternoon of an AI engineering training for beginners. The course covered: calling LLM APIs, prompt design, retrieval-augmented generation (RAG), and building simple tool-using agents. Participants also use AI assistants (like ChatGPT and Claude) to help them write scripts. You are honest about what an LLM-based solution can and cannot do — and especially about when it is overkill.
+    return `Task context: You are a level-headed, friendly AI engineering advisor on the last afternoon of an AI engineering training for beginners. The course covered the OpenAI API, structured outputs, function calling, retrieval-augmented generation (RAG), agents, async background jobs, streaming, LangChain, and evaluation. Participants also use AI assistants (like ChatGPT and Claude) to help them write scripts. You are honest about which of these building blocks a use case actually needs — and just as honest about which ones would be overkill.
 
 Request: Assess the AI engineering use case below and help the participant make it concrete.
 
@@ -166,18 +166,20 @@ The task: ${task.trim()}
 Frequency: ${frequency.trim() || 'unknown'} · Time per instance: ${timePer.trim() || 'unknown'}
 ${savedLine}
 
-The intended solution (drafted by the participant themselves):
+The intended solution, block by block (drafted by the participant themselves):
 ${assembledPlan}
 
 Output format: Give your answer in exactly this structure with markdown headings:
 ## Does this fit an LLM-based solution?
-One honest paragraph. Check three things: (1) is this actually a language/reasoning task an LLM is good at, (2) does it need retrieval over real data (RAG) or can a single prompt do it, (3) would a simpler rule-based script already do the job. If an LLM is overkill, say so plainly and name the better tool. If it fits, say whether a single prompt is enough or whether it needs an agent with tools.
+One honest paragraph on whether this is actually a language/reasoning task an LLM is good at, or whether a simpler rule-based script would already do the job. If an LLM is overkill, say so plainly and name the better tool.
+## Building blocks — right call?
+Go through the participant's 8 blocks (OpenAI API, structured outputs, function calling, RAG & agents, async jobs, streaming, LangChain, evaluation) in one tight paragraph. For each one they marked "not needed", say whether you agree. For each one they want to use, say whether it's justified or overkill for this volume/latency. Be specific, not generic.
 ## First 3 steps
-A numbered list of 3 concrete, small steps to start this week — step 1 is almost always: write the plain prompt by hand and try it on a handful of real examples first.
+A numbered list of 3 concrete, small steps to start this week — step 1 is almost always: write the plain prompt by hand and test it manually on a handful of real examples before writing any code.
 ## Starter code
-Only if an LLM fits: a short Python script (in a code block) that sketches the skeleton — call the model API with a system prompt and the relevant context, and print the result. If retrieval is needed, sketch where the lookup would go (as a stubbed function is fine). Use only things a beginner from this course recognizes. Made-up filenames and data are fine. If an LLM does NOT fit, title this section "## Do it without an LLM instead" and describe the better approach in 2-3 sentences.
+A short Python script (in a code block) that sketches the skeleton using ONLY the blocks the participant actually decided they need (skip structured outputs / function calling / RAG / async / streaming / LangChain if they marked them "not needed"). Use only things a beginner from this course recognizes. Made-up filenames and data are fine.
 ## Ask your AI assistant
-One ready-to-use prompt (in a code block) the participant can paste into ChatGPT or Claude to build the full solution together. Include the task, the context/data available, the shape of the solution, and the desired output.
+One ready-to-use prompt (in a code block) the participant can paste into ChatGPT or Claude to build the full solution together. Include the task, which building blocks are actually needed, and the desired output.
 ## Watch out
 At most 3 risks, picked for THIS case — think: hallucination on facts that matter, data/privacy exposure in the prompt, cost or latency at the volume described, or too much trust in an unchecked output.
 
@@ -247,28 +249,28 @@ Write in English, concise and practical. No headings other than the ones above.`
   }
 
   const buildCoachSystem =
-    () => `You are a patient, hands-on AI engineering build coach on the last afternoon of an AI engineering training for beginners. The course covered: calling LLM APIs, prompt design, retrieval-augmented generation (RAG), and building simple tool-using agents. Participants also use AI assistants (like ChatGPT and Claude) to help them write scripts.
+    () => `You are a patient, hands-on AI engineering build coach on the last afternoon of an AI engineering training for beginners. The course covered the OpenAI API, structured outputs, function calling, retrieval-augmented generation (RAG), agents, async background jobs, streaming, LangChain, and evaluation. Participants also use AI assistants (like ChatGPT and Claude) to help them write scripts.
 
-The participant designed the AI engineering use case below and already received advice on it. Your job now is to help them actually BUILD the first version, one small step at a time.
+The participant designed the AI engineering use case below and already received advice on it. Your job now is to help them actually BUILD the first version, one small step at a time — using only the building blocks they actually decided they need.
 
 The problem:
 ${problem.trim()}
 The task: ${task.trim()}
 
-Their solution plan:
+Their solution plan, block by block:
 ${assembledPlan}
 
 The advice they received:
 ${advice}
 
 Coaching rules:
-- In your FIRST message: give a short roadmap of 3-6 small numbered build steps, then immediately start with step 1. Step 1 is almost always: write the plain prompt by hand and test it manually on 2-3 real examples before writing any code.
+- In your FIRST message: give a short roadmap of 3-6 small numbered build steps that follows their block choices in order (skip any block they marked "not needed"), then immediately start with step 1. Step 1 is almost always: write the plain prompt by hand and test it manually on 2-3 real examples before writing any code.
 - Guide ONE step at a time: what to do, the exact code snippet or the exact AI-assistant prompt to use, and how to check it worked. Then stop and wait for the participant.
-- Start each step message with a heading like "### Step 2 of 5 — Wire up the API call". Never dump the whole solution at once — small wins keep momentum.
+- Start each step message with a heading like "### Step 2 of 5 — Add structured output". Never dump the whole solution at once — small wins keep momentum.
 - If they paste an error or a bad/hallucinated output, debug it with them calmly before moving on. A bad first output is information, not failure.
-- Use only concepts from the course: calling a chat completion API, system + user prompts, structuring output format, a stubbed or simple retrieval step for context, and (only if their plan needs it) a minimal tool-calling loop. Made-up filenames and data are fine; ask what their real data looks like when it matters.
+- Only introduce a building block (structured outputs, function calling, RAG, agents, async jobs, streaming, LangChain) if it appears in their plan — don't add complexity they didn't ask for. Made-up filenames and data are fine; ask what their real data looks like when it matters.
 - Keep every message short and practical (under ~200 words), in English, in markdown.
-- When the roadmap is complete, congratulate them and suggest one small stretch improvement (better retrieval, an eval on more examples, or a guardrail for low-confidence answers).`
+- When the roadmap is complete, congratulate them and suggest one small stretch improvement grounded in their own plan (e.g. tightening the evaluation, or adding a guardrail for low-confidence answers).`
 
   const buildTurnPrompt = (history: BuildMsg[]) => {
     if (history.length === 0)
@@ -463,10 +465,12 @@ Coaching rules:
         {step === 'design' && (
           <Box>
             <Callout tone="guide" title="Design your AI engineering solution 🧩">
-              Think it through in six blocks — behavior, context, shape,
-              volume, cost of mistakes, human role. Plain language is fine;
-              your plan grows along on the right. Stuck? Hover “example”, or
-              click it to insert.
+              Go through the 8 building blocks from the course — OpenAI API,
+              structured outputs, function calling, RAG & agents, async jobs,
+              streaming, LangChain, evaluation. For each one, decide if it's
+              needed here or not — "not needed, because…" is a valid and
+              important answer. Your plan grows along on the right. Stuck?
+              Hover “example”, or click it to insert.
             </Callout>
 
             <Flex

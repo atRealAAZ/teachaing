@@ -1,14 +1,20 @@
 // The AI Engineering Use Case Lab curriculum: participants describe a task
-// they'd like an LLM to do for them, then design an AI-engineered solution
-// from 6 building blocks. Presets exist to defeat the blank-field problem.
+// they'd like an LLM to do for them, then design a solution from 8 technical
+// building blocks — the actual toolkit from the course (OpenAI API, structured
+// outputs, function calling, async jobs, streaming, evaluation, LangChain,
+// agents & RAG). Not every use case needs every block: saying "not needed
+// here, because…" is itself part of the lesson. Presets exist to defeat the
+// blank-field problem.
 
 export type AIEngUseCaseBlockKey =
-  | 'behavior'
-  | 'context'
-  | 'shape'
-  | 'volume'
-  | 'mistakes'
-  | 'human'
+  | 'api'
+  | 'structuredOutput'
+  | 'functionCalling'
+  | 'ragAgent'
+  | 'asyncJobs'
+  | 'streaming'
+  | 'langchain'
+  | 'evaluation'
 
 export interface AIEngUseCaseBlockDef {
   key: AIEngUseCaseBlockKey
@@ -21,52 +27,68 @@ export interface AIEngUseCaseBlockDef {
 
 export const AIENG_USE_CASE_BLOCKS: AIEngUseCaseBlockDef[] = [
   {
-    key: 'behavior',
-    label: 'What should the AI actually do?',
-    prefix: 'Desired behavior',
-    topic: 'task',
-    hint: 'One concrete job, not a vague ambition. "Draft a reply" beats "help with support". Say what goes in and what should come out.',
+    key: 'api',
+    label: 'OpenAI API — what is the core call?',
+    prefix: 'OpenAI API call',
+    topic: 'API',
+    hint: 'Every solution starts here: what goes into the system/user prompt, and which model fits the job (fast & cheap vs. more capable)?',
     rows: 2,
   },
   {
-    key: 'context',
-    label: 'What context or data does it need?',
-    prefix: 'Context & data (RAG)',
-    topic: 'grounding',
-    hint: 'What does the model need to see to answer well — a document, a database row, past tickets? If it needs your own knowledge, that is retrieval (RAG), not just a clever prompt.',
+    key: 'structuredOutput',
+    label: 'Structured outputs — does it need a strict shape?',
+    prefix: 'Structured outputs',
+    topic: 'Structured outputs',
+    hint: 'If downstream code reads the result (a field, a list, a category), force JSON with a schema instead of parsing free text. If the output is just prose for a human, say so — you don\'t need this.',
+    rows: 2,
+  },
+  {
+    key: 'functionCalling',
+    label: 'Function calling — does the model need to trigger an action?',
+    prefix: 'Function calling',
+    topic: 'Function calling',
+    hint: 'Does the model need to look something up or trigger a real action (search, send, update a record)? Name the function(s). If it never needs to act, say "not needed" — a plain prompt is enough.',
     rows: 3,
   },
   {
-    key: 'shape',
-    label: 'A single prompt, or an agent with tools?',
-    prefix: 'Shape of the solution',
-    topic: 'architecture',
-    hint: 'Can one well-written prompt do it in one shot? Or does it need to look things up, call an API, or take multiple steps — which means an agent with tools.',
+    key: 'ragAgent',
+    label: 'RAG & agents — does it need your own knowledge or multiple steps?',
+    prefix: 'RAG & agents',
+    topic: 'RAG / Agents',
+    hint: 'If it must answer from YOUR documents/data, that\'s retrieval (RAG). If it needs to reason across multiple tool calls to get to an answer, that\'s an agent. Plenty of use cases need neither — say so if that\'s the case.',
+    rows: 3,
+  },
+  {
+    key: 'asyncJobs',
+    label: 'Async jobs — does it run in the background?',
+    prefix: 'Async jobs',
+    topic: 'Async jobs',
+    hint: 'Slow or bulk work (many items, long documents) should be queued as a background job instead of blocking a request. Fast, single, on-demand tasks don\'t need this — say so.',
     rows: 2,
   },
   {
-    key: 'volume',
-    label: 'How often, and how fast does it need to be?',
-    prefix: 'Volume & latency',
-    topic: 'scale',
-    hint: 'Roughly how many times will this run per day, and does a person wait for the answer? A live chat needs speed; a nightly batch job does not.',
+    key: 'streaming',
+    label: 'Streaming — does a person watch it appear live?',
+    prefix: 'Streaming',
+    topic: 'Streaming',
+    hint: 'If a person is staring at the screen waiting, stream tokens so it feels instant. If it runs unattended in the background, streaming adds nothing — say so.',
     rows: 2,
   },
   {
-    key: 'mistakes',
-    label: 'What does a wrong answer cost?',
-    prefix: 'Cost of mistakes',
-    topic: 'risk',
-    hint: 'LLMs are confidently wrong sometimes. What happens if it hallucinates or misses — mild annoyance, or something that reaches a customer unchecked?',
+    key: 'langchain',
+    label: 'LangChain — does it earn the extra structure?',
+    prefix: 'LangChain',
+    topic: 'LangChain',
+    hint: 'LangChain (or a similar framework) pays off once you chain multiple steps, swap models, or need built-in retrievers/agents. For one simple call, a raw API call is simpler — say "not needed" if that\'s true here.',
     rows: 2,
   },
   {
-    key: 'human',
-    label: 'Where does the human stay?',
-    prefix: 'Role of the human',
-    topic: 'control',
-    hint: 'The model drafts, a person decides. What gets reviewed before it goes out — every output, a sample, or only the low-confidence ones?',
-    rows: 2,
+    key: 'evaluation',
+    label: 'Evaluation — how do you know it actually works?',
+    prefix: 'Evaluation',
+    topic: 'Evaluation',
+    hint: 'Before trusting it in production: what does "good" look like, and how do you check it — a small labeled test set, an LLM-as-judge, or a human spot-check on a sample?',
+    rows: 3,
   },
 ]
 
@@ -94,18 +116,21 @@ export const AIENG_USE_CASE_PRESETS: AIEngUseCasePreset[] = [
     frequency: '150 times per week',
     timePer: '10 min each',
     examples: {
-      behavior:
-        'Given a customer email, draft a reply in our tone that answers their question or explains the next step. The agent edits and sends — the AI never sends directly.',
-      context:
-        'The incoming email text, our order/return policy, and (when relevant) the customer\'s order status looked up from the order system.',
-      shape:
-        'Mostly a single well-crafted prompt with the policy pasted in. If it needs the live order status, that is one tool call to the orders API — a small agent, not just a prompt.',
-      volume:
-        'About 150 tickets a week, roughly 20-30 a day. Agents read the draft before sending, so a few seconds of latency is fine.',
-      mistakes:
-        'A wrong policy detail in a sent email damages trust and can cost a refund. That is why a human reviews every draft before sending — no auto-send.',
-      human:
-        'The agent always reads and edits the draft before it goes out; the AI never has send access.',
+      api: 'One chat completion call: system prompt with our tone-of-voice and policy, user message is the incoming email text. Model: a fast, cheap one — this is a draft a human always edits.',
+      structuredOutput:
+        'Not strictly needed for the email body itself (it\'s prose), but useful for a side field: return { "reply": string, "category": "billing"|"technical"|"returns" } so the category can auto-tag the ticket.',
+      functionCalling:
+        'One function: get_order_status(order_id) — only called when the email mentions an order number, so the draft can reference real status instead of guessing.',
+      ragAgent:
+        'Not full RAG: the return/refund policy is short enough to paste directly into the system prompt instead of building a retriever for it.',
+      asyncJobs:
+        'Not needed — one ticket in, one draft out, fast enough to run synchronously when the agent opens the ticket.',
+      streaming:
+        'Not needed — the agent reviews the finished draft, not the model thinking out loud; a 2-3 second wait is fine unstreamed.',
+      langchain:
+        'Not needed — it\'s one call with one optional tool. A LangChain chain would add ceremony without adding capability here.',
+      evaluation:
+        'Weekly: an agent lead reads 20 random drafts against the actual sent (edited) reply and scores tone/accuracy 1-5. If policy facts are ever wrong, that\'s a hard fail, not a score.',
     },
   },
   {
@@ -119,18 +144,21 @@ export const AIENG_USE_CASE_PRESETS: AIEngUseCasePreset[] = [
     frequency: '20 times per week',
     timePer: '25 min each',
     examples: {
-      behavior:
-        'Given a raw call transcript, produce a short summary, decisions made, and a list of action items with an owner and rough deadline where mentioned.',
-      context:
-        'Just the transcript text itself — no external lookup needed, this is pure summarization, not retrieval.',
-      shape:
-        'A single prompt. No tools needed: everything the model needs is already in the transcript that gets pasted in.',
-      volume:
-        '20 calls a week. Nobody is waiting live — running it right after the call, within a minute or two, is plenty fast.',
-      mistakes:
-        'A missed action item means a dropped commitment to a client. Not dangerous, but embarrassing enough that someone should skim the output before it is shared.',
-      human:
-        'The call owner skims the summary and action items before sending them to the client or the team.',
+      api: 'One call: system prompt explains the desired format, user message is the full transcript pasted in. A cheap model is plenty — this is pure summarization, no reasoning over external facts.',
+      structuredOutput:
+        'Yes: return { "summary": string, "decisions": string[], "action_items": [{"owner": string, "task": string, "due": string|null}] } so action items can be rendered as a checklist, not re-parsed from prose.',
+      functionCalling:
+        'Not needed — everything the model needs is already in the transcript text; there is nothing to look up or trigger.',
+      ragAgent:
+        'Not needed — no external knowledge base, just the one transcript given directly in the prompt.',
+      asyncJobs:
+        'Yes: transcripts can be long (an hour call = a lot of tokens), so queue it as a background job right after the call ends instead of making someone wait on a request.',
+      streaming:
+        'Not needed — nobody watches it generate live; the result just needs to be ready a minute or two after the call.',
+      langchain:
+        'Not needed — a single well-structured prompt does the whole job in one call.',
+      evaluation:
+        'Spot-check: 10 transcripts a week reviewed by the call owner — did it catch every actual commitment made on the call? Missed action items are tracked as the key failure mode.',
     },
   },
   {
@@ -144,18 +172,21 @@ export const AIENG_USE_CASE_PRESETS: AIEngUseCasePreset[] = [
     frequency: '400 times per week',
     timePer: '6 min each',
     examples: {
-      behavior:
-        'Given a customer question, find the relevant help article(s) and answer directly, citing the article. If nothing relevant is found, hand off to a human instead of guessing.',
-      context:
-        'Our full help center, indexed so the model can retrieve the most relevant articles for a given question — classic RAG, since the answers must come from our real docs, not the model\'s general knowledge.',
-      shape:
-        'An agent: it has one tool (search the help docs), decides whether to use it, and only answers if it found something relevant enough. Otherwise it escalates.',
-      volume:
-        '400 questions a week, live in a chat widget — customers are waiting, so a few seconds of latency is the budget, not a few minutes.',
-      mistakes:
-        'Confidently answering from the wrong article, or making something up, is worse than saying "let me get a person" — a miss just costs a short wait.',
-      human:
-        'Anything below a confidence threshold, or anything the customer pushes back on, is routed to a human agent with the chat history attached.',
+      api: 'Chat completion with the retrieved article chunks injected into the system prompt as context, plus the customer question as the user message.',
+      structuredOutput:
+        'Yes for the routing decision: { "answer": string|null, "source_article_id": string|null, "confidence": "high"|"low" } — "low" or null answer triggers escalation.',
+      functionCalling:
+        'One function: search_help_docs(query) that the model calls before answering, so it only answers from what it actually found.',
+      ragAgent:
+        'This IS RAG: the help center is indexed (embeddings + vector search), the model retrieves the top matching articles, then answers grounded in them and cites the article. Escalates to a human when nothing relevant is found — that\'s the agent part: it decides whether to answer or hand off.',
+      asyncJobs:
+        'Not for answering (that\'s live chat), but the doc index itself is rebuilt as a nightly background job whenever articles change.',
+      streaming:
+        'Yes — it\'s a live chat widget, customers are watching, so stream the answer token by token once retrieval is done.',
+      langchain:
+        'Worth it here: LangChain\'s retriever + agent abstractions save real code versus hand-rolling embedding search, prompt assembly and the escalate-or-answer branching.',
+      evaluation:
+        'A labeled test set of 50 real past questions with the "correct" article — track retrieval hit-rate weekly, plus a human review of any answer given at "low" confidence that should have escalated instead.',
     },
   },
   {
@@ -169,32 +200,40 @@ export const AIENG_USE_CASE_PRESETS: AIEngUseCasePreset[] = [
     frequency: '1 time per week',
     timePer: '3 hours each',
     examples: {
-      behavior:
-        'Given this week\'s exported metrics (as a CSV or table), write a short narrative summary, call out the 2-3 biggest changes versus last week, and flag anything that looks off.',
-      context:
-        'This week\'s and last week\'s metrics export — pasted in or read from a file. No external knowledge base needed, just the numbers themselves.',
-      shape:
-        'A single prompt is enough if the numbers are pasted in directly. If it should pull the export itself from a shared drive, that becomes one tool call — a very small agent.',
-      volume:
-        'Once a week, not time-critical — running it Monday morning with a minute of latency is completely fine.',
-      mistakes:
-        'A wrong number in a report that goes to leadership is a real credibility problem, so nothing goes out unread.',
-      human:
-        'The manager always reviews the draft against the source numbers before it goes into the deck — this saves the writing, not the judgment.',
+      api: 'One call: system prompt defines the report structure, user message includes this week\'s and last week\'s numbers as a table.',
+      structuredOutput:
+        'Yes: { "narrative": string, "highlights": string[], "flags": string[] } so highlights and flags can be dropped straight into slide bullets instead of copy-pasted from prose.',
+      functionCalling:
+        'One function: fetch_metrics_export(week) so the report can pull the numbers itself from the shared drive instead of someone pasting them in by hand.',
+      ragAgent:
+        'Not needed — this reasons over one week\'s numbers, not a knowledge base; no retrieval step required.',
+      asyncJobs:
+        'Yes: scheduled to run automatically every Monday morning as a background job, so the draft is waiting instead of triggered by hand.',
+      streaming:
+        'Not needed — nobody is watching it generate; the manager reviews the finished draft later that morning.',
+      langchain:
+        'Not needed for the generation itself — a single prompt does the writing. Might reconsider if more data sources get added later.',
+      evaluation:
+        'Every report is checked against the source numbers before it ships (100% review, not sampling) — a wrong number to leadership is too costly to sample-check.',
     },
   },
 ]
 
 // Generic examples for "describe your own" — shapes instead of specifics.
 export const AIENG_USE_CASE_GENERIC_EXAMPLES: Record<AIEngUseCaseBlockKey, string> = {
-  behavior:
-    'The one concrete job the AI should do, with a clear input and a clear output — not a vague ambition.',
-  context:
-    'What the model needs to see to do it well — a document, a database lookup, past examples. If it is your own knowledge, that is retrieval (RAG).',
-  shape:
-    'Single prompt, or an agent that can call tools / look things up across multiple steps — and why.',
-  volume: 'Roughly how many times a day or week this runs, and whether a person is waiting live for the answer.',
-  mistakes:
-    'What a wrong or hallucinated answer costs, and whether that is mild annoyance or real damage if it goes out unchecked.',
-  human: 'What a person still reviews or approves before the output is used or sent.',
+  api: 'The core call: what goes in the system prompt, what goes in the user message, and roughly which model tier fits (fast/cheap vs. more capable).',
+  structuredOutput:
+    'Does downstream code need to read a field from the result? If yes, sketch the JSON shape. If the output is just prose for a human, say "not needed".',
+  functionCalling:
+    'Does the model need to look something up or trigger a real action? Name the function(s) — or say "not needed" if it never has to act.',
+  ragAgent:
+    'Does it need to answer from YOUR own documents/data (RAG), or reason across multiple tool calls (agent)? Or neither — say so if a plain prompt is enough.',
+  asyncJobs:
+    'Is this slow or bulk work that should run in the background instead of blocking a request? Or fast enough to run synchronously — say which.',
+  streaming:
+    'Is a person watching this generate live? If yes, stream it. If it runs unattended, say "not needed".',
+  langchain:
+    'Does chaining multiple steps or swapping models justify the extra structure — or is a raw API call simpler here?',
+  evaluation:
+    'How would you know if this is actually working — a labeled test set, an LLM-as-judge, or a human spot-check on a sample?',
 }
