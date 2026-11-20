@@ -16,6 +16,7 @@ import {
   useToast,
 } from '@chakra-ui/react'
 import { API_BASE, authFetch } from '../api'
+import { resetLab, usePersistentState } from '../persist'
 import {
   AIENG_USE_CASE_BLOCKS,
   AIENG_USE_CASE_GENERIC_EXAMPLES,
@@ -32,8 +33,12 @@ import {
   PresetCard,
   Stepper,
 } from './labKit'
+import { useUseCaseReport } from './UseCaseReport'
 
 const LAB_MODEL = 'gpt-5.4-mini'
+
+// localStorage namespace: everything typed here survives refresh/navigation
+const NS = 'aiengusecase'
 
 // Honest ROI: the AI drafts, humans check — assume ~70% of the time saved.
 const SAVING_RATIO = 0.7
@@ -59,7 +64,8 @@ function parseMinutesEach(s: string): number {
   const m = s.match(/(\d+(?:[.,]\d+)?)/)
   if (!m) return 0
   const n = parseFloat(m[1].replace(',', '.'))
-  return /uur|hour|hr|h\b/i.test(s) ? n * 60 : n
+  // "2h", "2 hours", "3 uur" → hours; note "each" must NOT count as "h"
+  return /\d\s*h\b|\b(uur|uren|hours?|hrs?)\b/i.test(s) ? n * 60 : n
 }
 
 function StatCard(props: { label: string; value: string; accent?: string }) {
@@ -86,18 +92,27 @@ function StatCard(props: { label: string; value: string; accent?: string }) {
 
 export default function AIEngUseCaseLab() {
   const toast = useToast({ position: 'top', duration: 3000, isClosable: true })
-  const [step, setStep] = useState<Step>('problem')
-  const [presetKey, setPresetKey] = useState<string | null>(null)
-  const [problem, setProblem] = useState('')
-  const [task, setTask] = useState('')
-  const [frequency, setFrequency] = useState('')
-  const [timePer, setTimePer] = useState('')
-  const [hourlyRate, setHourlyRate] = useState(50)
-  const [blocks, setBlocks] = useState<Record<AIEngUseCaseBlockKey, string>>(emptyBlocks)
-  const [advice, setAdvice] = useState('')
+  const [step, setStep] = usePersistentState<Step>(`${NS}.step`, 'problem')
+  const [presetKey, setPresetKey] = usePersistentState<string | null>(`${NS}.preset`, null)
+  const [problem, setProblem] = usePersistentState(`${NS}.problem`, '')
+  const [task, setTask] = usePersistentState(`${NS}.task`, '')
+  const [frequency, setFrequency] = usePersistentState(`${NS}.frequency`, '')
+  const [timePer, setTimePer] = usePersistentState(`${NS}.timePer`, '')
+  const [hourlyRate, setHourlyRate] = usePersistentState(`${NS}.hourlyRate`, 50)
+  const [blocks, setBlocks] = usePersistentState<Record<AIEngUseCaseBlockKey, string>>(
+    `${NS}.blocks`,
+    emptyBlocks,
+    (stored) => ({ ...emptyBlocks(), ...stored })
+  )
+  const [advice, setAdvice] = usePersistentState(`${NS}.advice`, '')
   const [adviceRunning, setAdviceRunning] = useState(false)
-  const [buildMsgs, setBuildMsgs] = useState<BuildMsg[]>([])
-  const [buildInput, setBuildInput] = useState('')
+  const [buildMsgs, setBuildMsgs] = usePersistentState<BuildMsg[]>(
+    `${NS}.buildMsgs`,
+    [],
+    // a refresh mid-stream can leave an empty coach placeholder behind
+    (stored) => stored.filter((m) => m.role === 'user' || m.content.trim())
+  )
+  const [buildInput, setBuildInput] = usePersistentState(`${NS}.buildInput`, '')
   const [buildRunning, setBuildRunning] = useState(false)
   const chatRef = useRef<HTMLDivElement>(null)
 
@@ -326,14 +341,68 @@ Coaching rules:
     runBuildTurn([...buildMsgs, { role: 'user', content: text.trim() }])
   }
 
+  const report = useUseCaseReport({
+    kind: 'AI engineering use case',
+    taskLabel: 'Task',
+    problem,
+    task,
+    frequency,
+    timePer,
+    hourlyRate,
+    estimate,
+    blocks: AIENG_USE_CASE_BLOCKS.map((b) => ({ label: b.label, value: blocks[b.key] })),
+    advice,
+    buildMsgs,
+  })
+
+  const downloadPdf = () => {
+    toast({
+      status: 'info',
+      title: 'Choose “Save as PDF” in the print dialog.',
+      duration: 5000,
+    })
+    report.print()
+  }
+
+  const startOver = () => {
+    if (
+      window.confirm(
+        'Start over? This clears everything you entered in this use case. Download it as PDF first if you want to keep it.'
+      )
+    )
+      resetLab(NS)
+  }
+
+  const pdfDisabled =
+    adviceRunning || buildRunning || (!problem.trim() && !task.trim())
+
   return (
     <Box h="100%" overflowY="auto" px={{ base: 6, lg: 10 }} py={8}>
       <Box maxW="1100px" mx="auto">
-        <Heading fontSize="2xl">Your AI engineering use case: from busywork to LLM feature</Heading>
-        <Text color="gray.500" mt={1}>
-          What is done by hand today? → Could an LLM-powered feature take it
-          over? → A concrete plan to find out, with AI at your side.
-        </Text>
+        {report.portal}
+        <Flex justify="space-between" align="flex-start" gap={4} flexWrap="wrap">
+          <Box>
+            <Heading fontSize="2xl">Your AI engineering use case: from busywork to LLM feature</Heading>
+            <Text color="gray.500" mt={1}>
+              What is done by hand today? → Could an LLM-powered feature take it
+              over? → A concrete plan to find out, with AI at your side.
+            </Text>
+          </Box>
+          <HStack>
+            <Button
+              size="sm"
+              variant="outline"
+              colorScheme="purple"
+              onClick={downloadPdf}
+              isDisabled={pdfDisabled}
+            >
+              ⬇ Download as PDF
+            </Button>
+            <Button size="sm" variant="ghost" onClick={startOver}>
+              Start over
+            </Button>
+          </HStack>
+        </Flex>
         <Stepper
           steps={[
             '1 · The problem',
@@ -660,6 +729,13 @@ Coaching rules:
                   >
                     Rethink it
                   </Button>
+                  <Button
+                    variant="ghost"
+                    colorScheme="purple"
+                    onClick={downloadPdf}
+                  >
+                    ⬇ Download as PDF
+                  </Button>
                 </HStack>
               </Box>
             )}
@@ -820,6 +896,14 @@ Coaching rules:
                 onClick={() => runBuildTurn([])}
               >
                 Restart the build
+              </Button>
+              <Button
+                variant="ghost"
+                colorScheme="purple"
+                isDisabled={pdfDisabled}
+                onClick={downloadPdf}
+              >
+                ⬇ Download as PDF
               </Button>
             </HStack>
           </Box>

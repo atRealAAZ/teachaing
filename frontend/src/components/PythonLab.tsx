@@ -22,6 +22,7 @@ import {
   useToast,
 } from '@chakra-ui/react'
 import api, { API_BASE, authFetch } from '../api'
+import { resetLab, usePersistentState } from '../persist'
 import {
   BLOCKS,
   GENERIC_EXAMPLES,
@@ -40,6 +41,9 @@ import {
 } from './labKit'
 
 const LAB_MODEL = 'gpt-5.4-mini'
+
+// localStorage namespace: everything typed here survives refresh/navigation
+const NS = 'pythonlab'
 
 type Step = 'data' | 'build' | 'run'
 
@@ -65,13 +69,17 @@ function parseCsvPreview(csv: string, maxRows = 8) {
 
 export default function PythonLab() {
   const toast = useToast({ position: 'top', duration: 3000, isClosable: true })
-  const [step, setStep] = useState<Step>('data')
-  const [presetKey, setPresetKey] = useState<string | null>(null)
-  const [ownCsv, setOwnCsv] = useState('')
-  const [blocks, setBlocks] = useState<Record<BlockKey, string>>(emptyBlocks)
+  const [step, setStep] = usePersistentState<Step>(`${NS}.step`, 'data')
+  const [presetKey, setPresetKey] = usePersistentState<string | null>(`${NS}.preset`, null)
+  const [ownCsv, setOwnCsv] = usePersistentState(`${NS}.ownCsv`, '')
+  const [blocks, setBlocks] = usePersistentState<Record<BlockKey, string>>(
+    `${NS}.blocks`,
+    emptyBlocks,
+    (stored) => ({ ...emptyBlocks(), ...stored })
+  )
   const [running, setRunning] = useState(false)
-  const [runResult, setRunResult] = useState<RunResult | null>(null)
-  const [coachOutput, setCoachOutput] = useState('')
+  const [runResult, setRunResult] = usePersistentState<RunResult | null>(`${NS}.runResult`, null)
+  const [coachOutput, setCoachOutput] = usePersistentState(`${NS}.coachOutput`, '')
   const [coachRunning, setCoachRunning] = useState(false)
 
   const preset: Preset | null =
@@ -235,11 +243,25 @@ Write in English, warm and concise. No headings other than the ones above.`
   return (
     <Box h="100%" overflowY="auto" px={{ base: 6, lg: 10 }} py={8}>
       <Box maxW="1100px" mx="auto">
-        <Heading fontSize="2xl">The capstone: one script, every lesson</Heading>
-        <Text color="gray.500" mt={1}>
-          Variables · Lists · Dicts · Functions · NumPy · Pandas · Matplotlib —
-          everything from the past two days in one analysis.
-        </Text>
+        <Flex justify="space-between" align="flex-start" gap={4} flexWrap="wrap">
+          <Box>
+            <Heading fontSize="2xl">The capstone: one script, every lesson</Heading>
+            <Text color="gray.500" mt={1}>
+              Variables · Lists · Dicts · Functions · NumPy · Pandas · Matplotlib —
+              everything from the past two days in one analysis.
+            </Text>
+          </Box>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              if (window.confirm('Start over? This clears your dataset choice, script and results.'))
+                resetLab(NS)
+            }}
+          >
+            Start over
+          </Button>
+        </Flex>
         <Stepper
           steps={['1 · Choose your data', '2 · Build your script', '3 · Run & learn']}
           active={step === 'data' ? 0 : step === 'build' ? 1 : 2}
